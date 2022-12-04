@@ -19,8 +19,10 @@ public:
 	void Init(const std::string& filepath);
 	void SaveChanges(const std::string& filepath);
 
-	void AddData(const User& user);
-	void ChangePassword(const std::string& name, const std::string& new_password);
+	void Register(const User& user);
+	void Login(const User& user);
+	bool ChangePassword(const User& user, const std::string& old_password);
+	bool VerifyPassword(const User& user);
 
 	void PrintData();
 };
