@@ -16,12 +16,19 @@ void Database::Init(const std::string& filepath)
 
     while (std::getline(file, line))
     {
-        if (lineCount % 2 == 0) user.name = line;
+        if (lineCount % 3 == 0) 
+        {
+            user.name = line;
+        }
+        else if (lineCount % 3 == 1)
+        {
+            user.password = decode(line);
+        }
         else
         {
-            user.password = line;
+            user.first_login = line == "1";
             userData.push_back(user);
-        }   
+        }
 
         lineCount++;
     }
@@ -37,7 +44,11 @@ void Database::SaveChanges(const std::string& filepath)
     for (int i = 0; i < userData.size(); i++)
     {
         ofs << userData[i].name.c_str() << std::endl;
-        ofs << userData[i].password.c_str() << std::endl;
+        ofs << encode(userData[i].password).c_str() << std::endl;
+
+        if(userData[i].first_login)
+            ofs << "1" << std::endl;
+        else ofs << "0" << std::endl;
     }
 
     ofs.close();
@@ -54,8 +65,15 @@ void Database::Register(const User& user)
         }
     }
 
-    std::cout << "REGISTERED SUCCESFULLY!\n";
-    userData.push_back(user);
+    if (VerifyPassword(user))
+    {
+        userData.push_back(user);
+        std::cout << "REGISTERED SUCCESFULLY!\n";
+    }
+    else
+    {
+        std::cout << "Error: [Register] Password has 2+ groups of 2 or 3+ duplicate symbols in a row!\n";
+    }
 }
 
 void Database::Login(const User& user)
@@ -64,18 +82,23 @@ void Database::Login(const User& user)
     {
         if (userData[i].name == user.name && userData[i].password == user.password)
         {
-            std::cout << "YOU MUST CHANGE PASSWORD AFTER FIRST LOGIN!\n";
-            std::cout << "Enter New Password: ";
-
-            User copy = user;
-            std::string old_pass = copy.password;
-            std::cin >> copy.password;
-
-            if(ChangePassword(copy, old_pass))
+            if (userData[i].first_login)
             {
-                std::cout << "LOGGED IN SUCCESFULLY!\n";
+                std::cout << "YOU MUST CHANGE PASSWORD AFTER FIRST LOGIN!\n";
+                std::cout << "Enter New Password: ";
+
+                User copy = user;
+                std::string old_pass = copy.password;
+                std::cin >> copy.password;
+
+                if(ChangePassword(copy, old_pass))
+                {
+                    std::cout << "LOGGED IN SUCCESFULLY!\n";
+                    userData[i].first_login = false;
+                }
+                else std::cout << "Logging in failed!\n";
             }
-            else std::cout << "Logging in failed!\n";
+            else std::cout << "LOGGED IN SUCCESFULLY!\n";
 
             return;
         }
@@ -112,6 +135,7 @@ bool Database::VerifyPassword(const User& user)
 {
     int size = user.password.size();
     int max_in_a_row = 0;
+    int double_groups = 0;
 
     for (int i = 0; i < size; i++)
     {
@@ -127,6 +151,9 @@ bool Database::VerifyPassword(const User& user)
             else break;
         }
 
+        if(in_a_row == 2)
+        double_groups++;
+
         if (in_a_row > max_in_a_row)
         {
             max_in_a_row = in_a_row;
@@ -135,13 +162,39 @@ bool Database::VerifyPassword(const User& user)
 
     std::cout << "[ChangePassword] max symbols in a row: " << max_in_a_row << "\n";
 
-    return max_in_a_row < 3;
+    return double_groups <= 1 && max_in_a_row < 3;
 }
 
 void Database::PrintData()
 {
     for (int i = 0; i < userData.size(); i++)
     {
-        std::cout << "Name: " << userData[i].name << " " << "Password: " << userData[i].password << std::endl;
+        std::cout << "Name: " << userData[i].name << " " << "Password: " << userData[i].password;
+        if(userData[i].first_login) std::cout << "FirstLogin: YES" << std::endl;
+        else std::cout << "FirstLogin: NO" << std::endl;
     }
+}
+
+std::string Database::encode(const std::string& str)
+{
+    std::string res = str;
+
+    for (int i = 0; i < res.size(); i++)
+    {
+        res[i] = char((int)res[i] + 1);
+    }
+
+    return res;
+}
+
+std::string Database::decode(const std::string& str)
+{
+    std::string res = str;
+
+    for (int i = 0; i < res.size(); i++)
+    {
+        res[i] = char((int)res[i] - 1);
+    }
+
+    return res;
 }
